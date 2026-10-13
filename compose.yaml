@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: dsh_mobile
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: dsh_mobile
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U dsh_mobile -d dsh_mobile]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  gateway:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://dsh_mobile:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/dsh_mobile
+      PUBLIC_ORIGIN: https://${DOMAIN:?Set DOMAIN}
+      REGISTRATION_MODE: ${REGISTRATION_MODE:-private}
+      ENROLLMENT_TOKEN: ${ENROLLMENT_TOKEN:-}
+      TRUST_PROXY_HOPS: '1'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      gateway:
+        condition: service_healthy
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

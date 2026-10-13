@@ -1,0 +1,9 @@
+{$DOMAIN} {
+  # gateway 不发布公网端口，只接受此反向代理的一跳转发。
+  reverse_proxy gateway:8787
+  header {
+    Referrer-Policy "no-referrer"
+    X-Content-Type-Options "nosniff"
+    Strict-Transport-Security "max-age=31536000"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+artifacts/
+.env
+.env.*
+!.env.example
+.test-data/
+
+# 内部迭代记录和 Agent 规则由项目集合维护，不纳入开源仓库。
+/CHANGELOG.md
+/AGENTS.md
