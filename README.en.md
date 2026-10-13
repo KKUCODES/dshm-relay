@@ -1,14 +1,16 @@
-# DSHM Relay Server
+# DSHM Relay for DeepSeek Harness
 
 [简体中文](./README.md) | English
 
-[Android app](https://github.com/KKUCODES/deepseek-harness-mobile/blob/main/README.en.md) · [Desktop plugin](https://github.com/KKUCODES/dshm-plugin/blob/main/README.en.md) · **Relay server**
+[DSHM Android app](https://github.com/KKUCODES/deepseek-harness-mobile/blob/main/README.en.md) · [DSHM desktop plugin](https://github.com/KKUCODES/dshm-plugin/blob/main/README.en.md) · **DSHM relay server**
+
+**DSHM Relay** is a self-hosted WebSocket relay server connecting the [DSHM Android client](https://github.com/KKUCODES/deepseek-harness-mobile/blob/main/README.en.md) to the computer plugin for [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness). It handles registration, pairing, authentication, and real-time transport to synchronize conversations and actions; computer DSH executes the tasks.
+
+[Docker Compose deployment](#deploy-the-relay-with-docker-compose) · [Deployment guide (Chinese)](./docs/deployment.md) · [Public relay](#use-the-public-relay) · [FAQ](#faq)
 
 <p align="center">
   <img src="./docs/images/logo.png" width="128" height="128" alt="DSHM logo: the DeepSeek whale with a two-way phone and computer connection">
 </p>
-
-Connects the DSHM phone app to the computer plugin, handling computer registration, device pairing, authentication, and real-time transport. Official DSH runs the tasks; the phone uses DSHM's own chat interface.
 
 ```mermaid
 flowchart LR
@@ -18,7 +20,7 @@ flowchart LR
 
 Direct chat connects the phone to DeepSeek without the relay. The backend needs no model API key and does not execute tasks or provide a remote desktop.
 
-## Deploy
+## Deploy the relay with Docker Compose
 
 **Self-hosting with HTTPS is recommended.** Node.js 24 + Fastify + PostgreSQL. Docker Compose includes the database, gateway, and Caddy; deployment is independent and does not require building the computer plugin.
 
@@ -45,7 +47,7 @@ Check that `https://your-domain/health` returns `ok: true`. Enter the relay's ro
 
 Restart the gateway after changing modes. Existing computer credentials remain valid. For local startup, updates, backups, and troubleshooting, see the [deployment guide (Chinese)](./docs/deployment.md).
 
-### Public backend
+### Use the public relay
 
 If you prefer not to self-host, enter the maintainer-provided [public URL](http://118.31.20.47:18787) in the computer plugin:
 
@@ -66,7 +68,21 @@ Registration is open; phones still need pairing and approval. HTTP transport is 
 
 Linux Docker validation covered public-network HTTP transport, pairing, revocation, container restarts, and backup restoration in an isolated environment. **HTTPS and the complete public-network path with real DSH + Android still need validation.**
 
-The core local combination is official DSH `0.2.1-alpha.2` + plugin `0.1.80-latest.0` + the matching Android app. Server address changes in `0.1.81-latest.0` were validated separately. These candidates have no official release yet; see the knowledge catalog for versions and extension limits.
+The core local combination is official DSH `0.2.1-alpha.2` + plugin `0.1.80-latest.0` + the original matching Android app. Server address changes in `0.1.81-latest.0` were validated separately. The phone now has a public development preview, and plugin Actions provides `0.1.82-latest.0` builds; download availability does not replace the original combination's full compatibility evidence. See [plugin versions and downloads](https://github.com/KKUCODES/dshm-plugin/blob/main/README.en.md#current-status).
+
+## FAQ
+
+### Does the computer need a public IP or an exposed DSH web port?
+
+The computer plugin initiates its connection to the relay, and the phone connects to the same relay. You do not need to expose the computer's DSH web port directly to the internet. Both networks must be able to reach the relay; forwarding computer localhost websites is outside the first version's scope.
+
+### Does the relay server store conversations or project files?
+
+The current database stores bindings, credential hashes, and replay-prevention records, not chat bodies or file contents. Conversations and files pass through the relay; HTTPS is not end-to-end encryption. See the [deployment and backup guide (Chinese)](./docs/deployment.md) for persistence and logging details.
+
+### Can anyone access my computer when registration is open?
+
+No. `open` only removes the enrollment token required for initial computer registration. Phone access still requires one-time pairing, computer approval, and authentication of subsequent requests.
 
 ## Development and documentation
 
