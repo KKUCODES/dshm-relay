@@ -1,6 +1,6 @@
 # 后端知识总目录
 
-首次使用从[项目首页](../../README.md)、[部署指南](../deployment.md)和[开发指南](../development.md)进入。下方保留各阶段验证来源；包含本体补丁的历史组合不属于当前纯官方 DSH＋独立插件交付范围，部署和启动不沿用这些历史脚本。
+首次使用从[项目首页](../../README.md)、[English](../../README.en.md)、[部署指南](../deployment.md)、[开发指南](../development.md)和[Logo 素材说明](../images/README.md)进入。下方保留各阶段验证来源；包含本体补丁的历史组合不属于当前纯官方 DSH＋独立插件交付范围，部署和启动不沿用这些历史脚本。
 
 无模型请求的[ACP测试安装与包管理配置恢复](../../../plugin/compatibility/latest-upstream/official-alpha2.md#acp测试安装的配置恢复2026-10-10)：正常官方安装、卸载和原字节恢复已验；无关配置变化拒绝覆盖。此专项不计Android成功，也不替代余额恢复后的真实审批回归。
 
