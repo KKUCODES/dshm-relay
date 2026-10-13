@@ -2,7 +2,7 @@
 
 简体中文 | [English](./README.en.md)
 
-[手机端](https://github.com/KKUCODES/dshm) · [电脑插件](https://github.com/KKUCODES/dshm-plugin) · **中转服务**
+[手机端](https://github.com/KKUCODES/deepseek-harness-mobile) · [电脑插件](https://github.com/KKUCODES/dshm-plugin) · **中转服务**
 
 <p align="center">
   <img src="./docs/images/logo.png" width="128" height="128" alt="DSHM Logo：DeepSeek 鲸鱼与手机、电脑双向连接">
