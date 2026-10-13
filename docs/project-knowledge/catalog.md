@@ -2,6 +2,8 @@
 
 首次使用从[项目首页](../../README.md)、[English](../../README.en.md)、[部署指南](../deployment.md)、[开发指南](../development.md)和[Logo 素材说明](../images/README.md)进入。下方保留各阶段验证来源；包含本体补丁的历史组合不属于当前纯官方 DSH＋独立插件交付范围，部署和启动不沿用这些历史脚本。
 
+公开仓库：[手机端](https://github.com/KKUCODES/dshm) · [电脑插件](https://github.com/KKUCODES/dshm-plugin) · [中转服务](https://github.com/KKUCODES/dshm-relay)。首页和公开使用、开发指南按独立仓库链接；本总目录的历史资料仍按本地项目集合组织。
+
 无模型请求的[ACP测试安装与包管理配置恢复](../../../plugin/compatibility/latest-upstream/official-alpha2.md#acp测试安装的配置恢复2026-10-10)：正常官方安装、卸载和原字节恢复已验；无关配置变化拒绝覆盖。此专项不计Android成功，也不替代余额恢复后的真实审批回归。
 
 版本边界：独立插件候选 `0.1.80-latest.0` 已在未修改的官方预发布 `0.2.1-alpha.2`、正常 `pnpm dsh web` 和真实 Android 下通过核心聊天、模型同步、审批、新建及重连；完整文件分享、交付卡片预览、计划/实际差异及电脑打开/定位已验，长聊天分页、重连及迟到回执的会话隔离另验通过；插件作者自适应声明、用户开关及页面重载保留也已验。PTC程序及内层命令结果、手机停止也已验。已清理新版预设复制/删除的协议入口；其他专项按各自版本记录，86轮恢复核对的具体范围见[新版复验入口](../../../plugin/compatibility/latest-upstream/official-alpha2.md)；版本、安装包、已取消能力及未验边界见[当前交付审查](../../../plugin/compatibility/latest-upstream/official-delivery-audit.md)。不交付修改版DSH，历史补丁结果不作为当前兼容证据，当前固定组合的本地兼容验收结论见[当前支持清单](../../../plugin/compatibility/latest-upstream/official-support.md)。 手机技能搜索、说明预览和官方正文实际加载/真实回复已验。 一层可继续子会话的手机停止、单次中断结算及停止后续聊已验。 外部任务最终正文查看、无效子会话入口拒绝及当前APK真实核心整轮已验。 文件与聊天的双引用入口、实际读取和结构化草稿重连已验。

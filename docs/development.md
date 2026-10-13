@@ -85,7 +85,7 @@ node scripts/live-client.mjs
 {"command":"request","operation":{"method":"session.list"}}
 ```
 
-收到 `ready` 且 `hostOnline: true` 后再请求会话。具体操作按项目集合的[协议说明](../../docs/protocol.md)填写，follow 快照中的 `throughSeq` 用于历史分页。
+收到 `ready` 且 `hostOnline: true` 后再请求会话。具体操作按本仓库的[协议定义](../packages/protocol/src/index.ts)填写，follow 快照中的 `throughSeq` 用于历史分页。
 
 - 续聊只选择专用测试会话的实际 `sessionId`，使用新的 `requestId`，先订阅 follow 观察输出。超时可能意味着结果未知，客户端不自动重发消息。
 - `cancel` 取消指定订阅，`exit` 关闭客户端；`session.cancel` 才是取消 Agent 轮次，不混用。

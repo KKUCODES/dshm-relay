@@ -2,6 +2,8 @@
 
 [简体中文](./README.md) | English
 
+[Android app](https://github.com/KKUCODES/dshm/blob/main/README.en.md) · [Desktop plugin](https://github.com/KKUCODES/dshm-plugin/blob/main/README.en.md) · **Relay server**
+
 <p align="center">
   <img src="./docs/images/logo.png" width="128" height="128" alt="DSHM logo: the DeepSeek whale with a two-way phone and computer connection">
 </p>
