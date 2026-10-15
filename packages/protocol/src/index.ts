@@ -190,5 +190,7 @@ export const hostFrameSchema = z.discriminatedUnion('type', [
 ])
 export type HostFrame = z.infer<typeof hostFrameSchema>
 export const isStream = (operation: Operation): boolean => ['session.follow', 'session.control', 'remote.stream', 'remote.graphFollow', 'remote.subagentStateFollow', 'remote.feedbackFollow', 'remote.taskFollow', 'remote.resource', 'remote.upload', 'remote.prompt', 'remote.office', 'remote.attachment', 'remote.attachmentOffice', 'remote.changes', 'remote.sessionExport'].includes(operation.method)
+export { SYNC_CACHE_FIELD, SYNC_CACHE_LIMIT, syncCacheEndpoint, syncHash, syncDelta, applySyncDelta } from './sync-cache.js'
+export type { SyncHint, SyncEnvelope } from './sync-cache.js'
 export const tokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
 export const labelSchema = z.string().trim().min(1).max(80)
