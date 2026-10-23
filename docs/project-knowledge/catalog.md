@@ -1,5 +1,7 @@
 # 后端知识总目录
 
+DSH rc.2：[原官方CLI＋生产中转实现的隔离验证工具](./knowledge/shared/rc21-host-check.md)。仅测试脚本，生产服务与协议未改。
+
 Remote 缓存：[共享差量工具与现有网关边界](./knowledge/shared/remote-sync-cache.md)，由手机和插件使用；无需升级公网网关，现有鉴权与操作范围保持。
 
 首次使用从[项目首页](../../README.md)、[English](../../README.en.md)、[部署指南](../deployment.md)、[开发指南](../development.md)和[Logo 素材说明](../images/README.md)进入。下方保留各阶段验证来源；包含本体补丁的历史组合不属于当前纯官方 DSH＋独立插件交付范围，部署和启动不沿用这些历史脚本。
