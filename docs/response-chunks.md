@@ -1,6 +1,6 @@
 # Remote 大响应分块
 
-状态：2026-10-23 独立 `fix/remote-response-chunks` 分支实现与本地验收完成，正在准备配套发行及公共中转升级。只修改 DSHM 手机端、插件与中转，不修改 DSH。实现：[KKC-75](https://linear.app/kkcodes/issue/KKC-75)；发布与部署：[KKC-76](https://linear.app/kkcodes/issue/KKC-76)。
+状态：2026-10-23 独立 `fix/remote-response-chunks` 分支实现与本地验收完成，协议提交 `94183d0` 已推送；App preview.7与插件0.1.87已公开发布。公共中转升级尚待服务器登录信息，未宣称公网分块已生效。只修改 DSHM 手机端、插件与中转，不修改 DSH。实现：[KKC-75](https://linear.app/kkcodes/issue/KKC-75)；发布与部署：[KKC-76](https://linear.app/kkcodes/issue/KKC-76)。
 
 ## 用户可见行为
 
