@@ -103,14 +103,15 @@ export async function buildGateway(options: GatewayOptions) {
     return { deviceId: value.id, hostId: value.host_id, status: value.status, management: value.management, expiresAt: value.expires_at }
   })
   app.post('/v1/device/ticket', async request => ({ ticket: tickets.mint(await device(request, '/v1/device/ticket')), expiresIn: 30 }))
-  const hosts = new WeakMap<FastifyRequest, { id: string; transport: number }>()
+  const hosts = new WeakMap<FastifyRequest, { id: string; transport: number; chunks: boolean }>()
   app.get('/v1/host/socket', { websocket: true, preValidation: async request => {
     const id = await host(request)
     const query = z.object({ transport: z.literal('2').optional() }).strict().parse(request.query)
-    hosts.set(request, { id, transport: query.transport ? REMOTE_TRANSPORT_VERSION : 1 })
+    hosts.set(request, { id, transport: query.transport ? REMOTE_TRANSPORT_VERSION : 1,
+      chunks: request.headers['x-dshm-response-chunks'] === '1' })
   } }, (socket, request) => {
     const host = hosts.get(request)!
-    hub.attachHost(host.id, socket, host.transport)
+    hub.attachHost(host.id, socket, host.transport, host.chunks)
   })
   app.get('/v1/device/socket', { websocket: true }, socket => hub.attachDevice(socket))
   const cleanup = setInterval(() => { tickets.cleanup(); void store.cleanup().catch(() => app.log.error('Cleanup failed')) }, 300000)

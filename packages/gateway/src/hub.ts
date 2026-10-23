@@ -1,18 +1,21 @@
 import { randomUUID } from 'node:crypto'
 import WebSocket, { type RawData } from 'ws'
 import { z } from 'zod'
-import { clientFrameSchema, hostFrameSchema, isStream, MAX_FRAME_BYTES, tokenSchema, remotePermission, remoteRequestAllowed } from '@dsh-mobile/protocol'
+import { clientFrameSchema, hostFrameSchema, isStream, MAX_FRAME_BYTES, tokenSchema, remotePermission, remoteRequestAllowed,
+  ResponseSequence, RESPONSE_CHUNKS_VERSION, RESPONSE_IDLE_MS, RESPONSE_TOTAL_MS, MAX_RESPONSE_TRANSFERS, MAX_RESPONSE_BUFFER_BYTES } from '@dsh-mobile/protocol'
 import type { Device, Store } from './store.js'
 import type { Tickets } from './tickets.js'
 
 type Client = { socket: WebSocket; device: Device; connectionId: string; pending: Map<string, string> }
-type Pending = { client: Client; originalId: string; hostId: string; stream: boolean; resource: boolean; upload: boolean; timer: NodeJS.Timeout }
+type Pending = { client: Client; originalId: string; hostId: string; stream: boolean; resource: boolean; upload: boolean;
+  chunks: boolean; response?: ResponseSequence; timer: NodeJS.Timeout }
 const authFrame = z.object({ type: z.literal('authenticate'), ticket: tokenSchema }).strict()
 
 /** 单实例中继；只持有在线路由和短期请求，不持久化聊天正文。 */
 export class Hub {
   private hosts = new Map<string, WebSocket>()
   private hostTransports = new Map<string, number>()
+  private chunkHosts = new Set<string>()
   private clients = new Set<Client>()
   private authenticating = new Map<string, Set<WebSocket>>()
   private pending = new Map<string, Pending>()
@@ -44,11 +47,13 @@ export class Hub {
     }
     socket.send(payload); return true
   }
-  attachHost(hostId: string, socket: WebSocket, transport = 1) {
+  attachHost(hostId: string, socket: WebSocket, transport = 1, responseChunks = false) {
     const previous = this.hosts.get(hostId)
     if (previous) { this.hostGone(hostId); previous.close(4001, 'host_replaced') }
     this.hosts.set(hostId, socket); this.watch(socket)
     this.hostTransports.set(hostId, transport)
+    if (responseChunks && transport === 2) this.chunkHosts.add(hostId)
+    else this.chunkHosts.delete(hostId)
     socket.on('message', (raw, binary) => {
       if (this.hosts.get(hostId) !== socket) return
       const parsed = this.parse(raw, binary, hostFrameSchema)
@@ -57,22 +62,55 @@ export class Hub {
       // 不信任 Host 自报的关联 id；同时校验当前连接的 Host 归属。
       if (!request || request.hostId !== hostId) return
       if (new Date(request.client.device.expires_at).getTime() <= Date.now()) { this.disconnect(request.client, 'credential_expired'); return }
+      // 分块仍属于原请求和原权限；RPC的分块不会被当作额外业务订阅。
+      if (parsed.type === 'responseStart' || parsed.type === 'responseChunk' || parsed.type === 'responseEnd') {
+        try {
+          if (!request.chunks || !this.chunkHosts.has(hostId)) throw Error('unnegotiated_response_chunks')
+          if (parsed.type === 'responseStart') {
+            if (request.response) throw Error('invalid_response_chunk')
+            const active = [...this.pending.values()].filter(item => item.client === request.client && item.response)
+            if (active.length >= MAX_RESPONSE_TRANSFERS || active.reduce((sum, item) => sum + item.response!.start.bytes, 0) + parsed.bytes > MAX_RESPONSE_BUFFER_BYTES) throw Error('response_buffer_limit')
+            request.response = new ResponseSequence(parsed, request.stream)
+          } else if (!request.response) throw Error('invalid_response_chunk')
+          else if (parsed.type === 'responseChunk') request.response.chunk(parsed)
+          else request.response.end(parsed)
+          clearTimeout(request.timer)
+          const terminal = parsed.type === 'responseEnd' && request.response!.start.kind === 'result'
+          if (parsed.type === 'responseEnd') request.response = undefined
+          if (!this.send(request.client.socket, { ...parsed, id: request.originalId })) { this.finish(parsed.id, true); return }
+          if (terminal) this.finish(parsed.id, false)
+          else if (request.response) {
+            request.timer = setTimeout(() => {
+              this.send(request.client.socket, { type: 'error', id: request.originalId, code: 'response_chunk_timeout' }); this.finish(parsed.id, true)
+            }, Math.max(1, Math.min(RESPONSE_IDLE_MS, RESPONSE_TOTAL_MS - (Date.now() - request.response.startedAt)))); request.timer.unref()
+          }
+        } catch (error) {
+          const code = error instanceof Error && ['response_buffer_limit', 'response_chunk_timeout', 'incomplete_response_chunk'].includes(error.message)
+            ? error.message : 'invalid_response_chunk'
+          this.send(request.client.socket, { type: 'error', id: request.originalId, code })
+          this.finish(parsed.id, true)
+        }
+        return
+      }
+      if (request.response && parsed.type !== 'error') {
+        this.send(request.client.socket, { type: 'error', id: request.originalId, code: 'incomplete_response_chunk' }); this.finish(parsed.id, true); return
+      }
       if ((parsed.type === 'event' || parsed.type === 'end') && !request.stream) { socket.close(1008, 'invalid_response'); return }
       clearTimeout(request.timer)
       this.send(request.client.socket, { ...parsed, id: request.originalId })
       if (parsed.type !== 'event') this.finish(parsed.id, false)
     })
     socket.on('close', () => {
-      if (this.hosts.get(hostId) === socket) { this.hosts.delete(hostId); this.hostTransports.delete(hostId); this.hostGone(hostId) }
+      if (this.hosts.get(hostId) === socket) { this.hosts.delete(hostId); this.hostTransports.delete(hostId); this.chunkHosts.delete(hostId); this.hostGone(hostId) }
     })
   }
   attachDevice(socket: WebSocket) {
     this.watch(socket)
-    let client: Client | undefined, authenticating = false, frames = 0, acknowledgements = 0, windowStart = Date.now()
+    let client: Client | undefined, authenticating = false, frames = 0, acknowledgements = 0, responseAcknowledgements = 0, windowStart = Date.now()
     const deadline = setTimeout(() => socket.close(1008, 'authentication_required'), 5000)
     deadline.unref()
     socket.on('message', (raw, binary) => {
-      if (Date.now() - windowStart > 1000) { frames = 0; acknowledgements = 0; windowStart = Date.now() }
+      if (Date.now() - windowStart > 1000) { frames = 0; acknowledgements = 0; responseAcknowledgements = 0; windowStart = Date.now() }
       if (!client) {
         if (authenticating) { socket.close(1008, 'authentication_in_progress'); return }
         const frame = this.parse(raw, binary, authFrame)
@@ -89,7 +127,7 @@ export class Hub {
             if ([...this.clients].filter(item => item.device.id === device.id).length >= 4) throw new Error('limit')
             client = { socket, device: current, connectionId: randomUUID(), pending: new Map() }; this.clients.add(client)
             clearTimeout(deadline)
-            this.send(socket, { type: 'ready', protocol: 1, hostOnline: this.hosts.has(device.host_id), management: current.management })
+            this.send(socket, { type: 'ready', protocol: 1, hostOnline: this.hosts.has(device.host_id), management: current.management, responseChunksVersion: RESPONSE_CHUNKS_VERSION })
           } finally {
             sockets.delete(socket); if (!sockets.size) this.authenticating.delete(device.id)
           }
@@ -99,12 +137,25 @@ export class Hub {
       const frame = this.parse(raw, binary, clientFrameSchema)
       if (!frame) { socket.close(1008, 'invalid_frame'); return }
       // 文件消费确认不应挤占普通 RPC 配额；两者仍独立限速，且只能确认自己的在途资源。
-      if (['ack', 'uploadChunk', 'uploadEnd'].includes(frame.type) ? ++acknowledgements > 512 : ++frames > 120) { socket.close(1008, 'rate_limited'); return }
+      const rateLimited = frame.type === 'responseAck' ? ++responseAcknowledgements > 4096
+        : ['ack', 'uploadChunk', 'uploadEnd'].includes(frame.type) ? ++acknowledgements > 512 : ++frames > 120
+      if (rateLimited) { socket.close(1008, 'rate_limited'); return }
       if (!this.clients.has(client)) return
       if (new Date(client.device.expires_at).getTime() <= Date.now()) { this.disconnect(client, 'credential_expired'); return }
       if (frame.type === 'cancel') {
         const id = client.pending.get(frame.id)
         if (id) { this.finish(id, true); this.send(socket, { type: 'end', id: frame.id }) }
+        return
+      }
+      if (frame.type === 'responseAck') {
+        const id = client.pending.get(frame.id), pending = id ? this.pending.get(id) : undefined
+        if (!pending?.response || !pending.chunks) return
+        try {
+          pending.response.ack(frame)
+          if (!this.send(this.hosts.get(pending.hostId), { ...frame, id })) this.finish(id!, true)
+        } catch {
+          this.send(socket, { type: 'error', id: frame.id, code: 'invalid_response_ack' }); this.finish(id!, true)
+        }
         return
       }
       if (frame.type === 'ack') {
@@ -122,6 +173,7 @@ export class Hub {
       if (client.pending.has(frame.id)) { socket.close(1008, 'duplicate_request_id'); return }
       const host = this.hosts.get(client.device.host_id)
       const error = (code: string) => this.send(socket, { type: 'error', id: frame.id, code })
+      if (frame.responseChunks && !this.chunkHosts.has(client.device.host_id)) { error('response_chunks_unavailable'); return }
       if (['remote.providerCardRead', 'remote.modelReadiness', 'remote.modelProbePrepare', 'remote.modelProbeExecute'].includes(frame.operation.method) && !client.device.management) {
         error('management_required'); return
       }
@@ -158,7 +210,7 @@ if (['remote.settingsRead', 'remote.settingsWrite', 'remote.providerSettingsList
       const id = randomUUID()
       const timer = setTimeout(() => { error('request_timeout_outcome_unknown'); this.finish(id, true) }, 30000)
       timer.unref()
-      this.pending.set(id, { client, hostId: client.device.host_id, originalId: frame.id, stream, resource, upload, timer })
+      this.pending.set(id, { client, hostId: client.device.host_id, originalId: frame.id, stream, resource, upload, chunks: frame.responseChunks === 1, timer })
       client.pending.set(frame.id, id)
       const context = frame.operation.method.startsWith('remote.') ? { context: {
         deviceId: client.device.id, hostId: client.device.host_id, connectionId: client.connectionId, management: client.device.management,
@@ -197,6 +249,6 @@ if (['remote.settingsRead', 'remote.settingsWrite', 'remote.providerSettingsList
     clearInterval(this.heartbeat)
     for (const client of this.clients) this.detach(client)
     for (const socket of this.sockets.keys()) socket.terminate()
-    this.hosts.clear(); this.hostTransports.clear(); this.sockets.clear()
+    this.hosts.clear(); this.hostTransports.clear(); this.chunkHosts.clear(); this.sockets.clear()
   }
 }

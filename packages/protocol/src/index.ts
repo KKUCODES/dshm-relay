@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { responseStartSchema, responseChunkSchema, responseEndSchema, responseAckSchema } from './response-chunks.js'
+export * from './response-chunks.js'
 import { presetManagementReadSchema, presetCopySchema, presetDeleteSchema } from './remote-presets.js'
 export { remotePresetIdSchema, presetManagementReadSchema, presetCopySchema, presetDeleteSchema, presetManagementViewSchema } from './remote-presets.js'
 export type { PresetCopy, PresetDelete } from './remote-presets.js'
@@ -167,26 +169,27 @@ const uploadChunk = z.object({ type: z.literal('uploadChunk'), id: z.uuid(),
   data: z.string().min(4).max(87384).regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/) }).strict()
 const uploadEnd = z.object({ type: z.literal('uploadEnd'), id: z.uuid() }).strict()
 export const clientFrameSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('request'), id: z.uuid(), operation: operationSchema }).strict(),
+  z.object({ type: z.literal('request'), id: z.uuid(), operation: operationSchema, responseChunks: z.literal(1).optional() }).strict(),
   z.object({ type: z.literal('cancel'), id: z.uuid() }).strict(),
   z.object({ type: z.literal('ack'), id: z.uuid(), count: z.number().int().min(1).max(RESOURCE_WINDOW) }).strict(),
-  uploadChunk, uploadEnd,
+  uploadChunk, uploadEnd, responseAckSchema,
 ])
 export type ClientFrame = z.infer<typeof clientFrameSchema>
 // 此信封仅由已鉴权网关生成，手机不能提交/覆盖设备、电脑或管理权限。
 export const remoteContextSchema = z.object({ deviceId: z.uuid(), hostId: z.uuid(), connectionId: z.uuid(), management: z.boolean() }).strict()
 export type RemoteContext = z.infer<typeof remoteContextSchema>
 export const routedFrameSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('request'), id: z.uuid(), operation: operationSchema, context: remoteContextSchema.optional() }).strict(),
+  z.object({ type: z.literal('request'), id: z.uuid(), operation: operationSchema, context: remoteContextSchema.optional(), responseChunks: z.literal(1).optional() }).strict(),
   z.object({ type: z.literal('cancel'), id: z.uuid() }).strict(),
   z.object({ type: z.literal('ack'), id: z.uuid(), count: z.number().int().min(1).max(RESOURCE_WINDOW) }).strict(),
-  uploadChunk, uploadEnd,
+  uploadChunk, uploadEnd, responseAckSchema,
 ])
 export const hostFrameSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('result'), id: z.uuid(), value: z.unknown() }).strict(),
   z.object({ type: z.literal('event'), id: z.uuid(), value: z.unknown() }).strict(),
   z.object({ type: z.literal('end'), id: z.uuid() }).strict(),
   z.object({ type: z.literal('error'), id: z.uuid(), code: z.string().min(1).max(100) }).strict(),
+  responseStartSchema, responseChunkSchema, responseEndSchema,
 ])
 export type HostFrame = z.infer<typeof hostFrameSchema>
 export const isStream = (operation: Operation): boolean => ['session.follow', 'session.control', 'remote.stream', 'remote.graphFollow', 'remote.subagentStateFollow', 'remote.feedbackFollow', 'remote.taskFollow', 'remote.resource', 'remote.upload', 'remote.prompt', 'remote.office', 'remote.attachment', 'remote.attachmentOffice', 'remote.changes', 'remote.sessionExport'].includes(operation.method)

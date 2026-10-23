@@ -6,6 +6,7 @@ import { resolve } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
 import { buildGateway } from '../packages/gateway/dist/app.js';
 import { Store } from '../packages/gateway/dist/store.js';
+import { seedLargeHistory } from './seed-large-history.mjs';
 
 // 原官方CLI＋自有候选＋生产中转实现。只操作此轮独立home/数据库/批准设备。
 const root = resolve(import.meta.dirname, '..'), output = resolve(root, 'artifacts/rc21-host');
@@ -47,6 +48,8 @@ try {
   for (const deadline = Date.now() + 120000; child.exitCode === null && Date.now() < deadline;) await wait(100);
   if (child.exitCode === null) { kill(child); throw Error('official_install_timeout'); }
   assert.equal(child.exitCode, 0, 'official_install_failed');
+  const workspacePath = resolve(run, 'rc21-check-project'); await mkdir(workspacePath);
+  if (process.env.DSHM_CHECK_LARGE_HISTORY === '1') state.largeHistory = await seedLargeHistory(sdk, env.DSH_HOME, workspacePath);
   child = start(['web', '--no-open', '--host', '127.0.0.1', '--port', '16977']); state.pid = child.pid; state.stage = 'starting'; await save();
   let buffered = '', login;
   child.stdout.on('data', bytes => { buffered = (buffered + bytes).slice(-65536); login ??= buffered.match(/http:\/\/127\.0\.0\.1:16977\/\?token=[^\s]+/)?.[0]; });
@@ -58,15 +61,20 @@ try {
     const rpcId = randomUUID();
     const response = await fetch(hostOrigin + '/api/' + method, { method: 'POST', headers: { cookie, 'content-type': 'application/json' },
       body: JSON.stringify({ type: 'client-request', rpcId, method, payload: { args } }) });
-    const frame = await response.json(); assert.equal(frame.rpcId, rpcId); assert.equal(frame.result.ok, true, method);
+    const frame = await response.json(); assert.equal(frame.rpcId, rpcId); assert.equal(frame.result.ok, true, `${method}: ${JSON.stringify(frame.result.error)}`);
     return frame.result.value;
   };
-  const workspacePath = resolve(run, 'rc21-check-project'); await mkdir(workspacePath);
   const registered = await rpc('workspace/create', { request: { path: workspacePath } });
   const sessionId = 'rc21-check-' + randomUUID();
   await rpc('session/create', { request: { workspaceId: registered.workspace.workspaceId, sessionId } });
   await rpc('session/rename', { request: { sessionId, title: 'DSHM compatibility check' } });
   state.sessionId = sessionId;
+  if (state.largeHistory) {
+    const page = await rpc('session/page', { request: { address: { kind: 'session', sessionId: state.largeHistory.sessionId },
+      throughSeq: state.largeHistory.events - 1, maxMessages: 500, turnWindow: { minMessages: 50, minTurns: 2 } } });
+    state.largeHistory.tailBytes = Buffer.byteLength(JSON.stringify(page));
+    assert.ok(state.largeHistory.tailBytes > 2 * 1024 * 1024, 'fixture_did_not_exceed_frame_limit');
+  }
   state.stage = 'ready'; await save(); console.log(JSON.stringify({ stage: state.stage, version, origin }));
   const pair = async () => {
     const pairing = await manage({ action: 'pair' });
