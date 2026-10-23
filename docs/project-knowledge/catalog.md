@@ -1,6 +1,6 @@
 # 后端知识总目录
 
-大响应修复：[分块协议、配套升级、旧端兼容与验证边界](../response-chunks.md)。本地验收通过；协议94183d0已推送，配套App preview.7/插件0.1.87已发布，公共中转升级仍待服务器登录信息，实际状态见[运维](../../deploy/public-server.md)。
+大响应修复：[分块协议、配套升级、旧端兼容与验证边界](../response-chunks.md)。本地验收通过；协议94183d0已推送，配套App preview.7/插件0.1.87已发布，公共中转已升级并通过公网分块、重连和旧端兼容，实际状态与回滚入口见[运维](../../deploy/public-server.md)。
 
 DSH rc.2：[原官方CLI＋生产中转实现的隔离验证工具](./knowledge/shared/rc21-host-check.md)。仅测试脚本，生产服务与协议未改。
 

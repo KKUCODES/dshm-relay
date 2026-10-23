@@ -1,12 +1,12 @@
-# 公网临时联调服务器
+# 公共中转服务器
 
-状态：HTTP 临时联调部署与后端公网通信验收通过。维护：后端维护者。核验日期：2026-10-10。
+状态：HTTP 公共中转已升级通用分块协议，公网传输与旧端兼容验收通过。维护：后端维护者。核验日期：2026-10-23。
 
-任务：[KKC-27](https://linear.app/kkcodes/issue/KKC-27)。本次用户明确选择 HTTP 非标准端口用于临时联调，不作为正式公共服务发布。
+最初部署任务：[KKC-27](https://linear.app/kkcodes/issue/KKC-27)，用户选择 HTTP 非标准端口用于联调；后续由用户提供给公开试用。[本次分块升级](https://linear.app/kkcodes/issue/KKC-76)保持原入口与配置，不改变传输加密或容量承诺。
 
 ## 当前配置
 
-2026-10-23 配套升级状态：通用分块协议提交 `94183d08ccbb8752d14c819608d79fe3870a9a60` 已推送，App preview.7与插件0.1.87已公开发布。此次只读访问确认 `/health` 与 `/v1/server-info` 正常，但服务器 SSH 身份验证尚未成功，正在等待可用登录信息；尚未修改运行容器、配置或数据库。现有健康结果不能证明新分块能力已上线。[升级任务](https://linear.app/kkcodes/issue/KKC-76)、[协议与回归边界](../docs/response-chunks.md)。后续须保留原配置/数据和回滚源，仅更新本项目网关并验证新旧端通信。
+2026-10-23 配套升级完成：运行通用分块协议提交 `94183d08ccbb8752d14c819608d79fe3870a9a60`，配套App preview.7与插件0.1.87已公开发布。新版镜像 `dshm-relay-gateway:chunks-94183d0` 已启动并通过公网分块、重连与旧端通信核验；仅重建网关，原数据库、设备授权、代理与其他项目容器保持。[升级任务](https://linear.app/kkcodes/issue/KKC-76)、[协议与回归边界](../docs/response-chunks.md)。
 
 - 当前入口：`http://118.31.20.47:18787`，电脑插件填写此根地址；新电脑注册后按原流程生成配对链接、在手机领取并在电脑批准。
 - 开放注册：不需要公共注册密钥，手机仍需一次性配对和电脑批准。
@@ -17,7 +17,7 @@
 - 内存上限：网关 384 MiB、数据库 256 MiB、代理 128 MiB；日志每个容器最多三份 10 MiB 文件。
 - 凭据只存服务器 `.env`，文件权限 600、项目目录 700；上传源码不包含本机 `.env.local`。
 
-HTTP/WS 不加密，DPoP 和电脑批准不能提供传输机密性。当前仅用于临时联调，不承诺公开使用容量、长期可用性或完整 Android/DSH 公网验收。
+HTTP/WS 不加密，DPoP 和电脑批准不能提供传输机密性。当前供公开试用，不承诺公开使用容量、长期可用性或完整 Android/DSH 公网验收。
 
 ## 运维
 
@@ -47,6 +47,20 @@ systemctl status dshm-relay-backup.service
 IP 证书已由 Let's Encrypt 正式支持，但验证 IP 仍需公网 TCP 80 或 443；不能用 DNS 验证裸 IP。当前服务器未开放这两个端口，未签发受信任证书。
 
 如果提供域名，可通过 DNS 验证签发证书并在非标准端口提供 HTTPS；具体备案范围按服务、服务器地域和云厂商规则确认，不能把换端口解释为免备案。依据：[Let's Encrypt 验证方式](https://letsencrypt.org/docs/challenge-types/)、[阿里云备案服务器检查](https://help.aliyun.com/zh/icp-filing/basic-icp-service/user-guide/icp-filing-server-access-information-check)。
+
+## 分块升级与验收（2026-10-23）
+
+从提交 `94183d08ccbb8752d14c819608d79fe3870a9a60` 导出源码归档，SHA-256 为 `b316005e50160fb74d82db295482b8ecc0a0ebb8949cc4ffd128b5fc173b1b11`，上传后再次校验并在服务器构建。新镜像ID为 `sha256:48c144b4bc2d8ce5e001692e504f25875c32484475ef910408f88fa2941ccb79`，revision标签与源码一致；启动时间 `2026-10-23T15:09:58Z`，容器健康且实际协议常量为1。
+
+原 `.env`、基础Compose、Caddyfile和备份脚本摘要保持；仅修改现有override的网关image和build目录，指向 `releases/94183d08ccbb8752d14c819608d79fe3870a9a60`，防止下次构建退回旧根目录源码。`up --no-build --no-deps --wait gateway` 只重建网关；PostgreSQL/Caddy的容器ID及启动时间保持，MySQL/frp容器也未变。新网关仍为只读根目录、384MiB上限，备份timer保持active。
+
+已实际生成并校验 `backups/database-20261023T150655Z.dump` 和对应配置归档。旧镜像保留为 `dshm-relay-gateway:rollback-before-chunks-20261023`，旧override在 `releases/rollback-chunks-20261023/compose.override.yaml`。必要时从 `/opt/dshm-relay` 恢复该override，再执行 `docker compose -p dshm-relay up -d --no-build --no-deps --wait gateway`；不恢复旧数据库、不移除卷。此轮未在生产演练回滚。
+
+公网验证使用真实配对、鉴权、中转、插件 `ResponseWriter` 和手机 `RemoteClient`；Host业务响应是合成数据，不是真实DSH/Android或模型请求。升级前登记并批准的同一测试设备在升级后仍可连接。2,600,064字节历史页、2,600,062字节首快照、实时大事件及紧随的小事件顺序通过；中途断开释放半份数据，重连重新读取通过。共164个数据块，最大物理帧87,525字节，发送/重组预算最终归零。
+
+未声明能力的旧Host对等端小RPC、订阅与取消通过，显式分块请求返回 `response_chunks_unavailable`；旧手机格式小响应通过，大响应明确失败且连接保持。普通设备的管理请求仍拒绝。两个专用设备均先撤销并确认不能再申请票据，再按精确ID及名称、指纹和revoked状态，在事务中清理本次Host、设备、配对和防重放记录；未删除其他记录。公网 `/health` 与 `/v1/server-info` 返回200。
+
+本机证据在忽略目录 `artifacts/chunk-release/`：`deployment-report.json`、`public-verification.json`、`legacy-public-verification.json` 和 `cleanup-report.json`；验证器同目录保存，SSH凭据不写入报告或仓库。发行/本地Android证据仍按各自专题解释，不扩大为完整真机或Electron公网验收。
 
 ## 验证记录
 
