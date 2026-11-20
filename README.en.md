@@ -20,11 +20,13 @@ flowchart LR
 
 Direct chat connects the phone to DeepSeek without the relay. The backend needs no model API key and does not execute tasks or provide a remote desktop.
 
+For Remote, use [DSHM for Android `0.1.0-preview.22`](https://github.com/KKUCODES/deepseek-harness-mobile/releases/tag/v0.1.0-preview.22) with [desktop plugin `0.1.88-latest.0`](https://github.com/KKUCODES/dshm-plugin/releases/tag/v0.1.88-latest.0) on official DSH `0.2.2-rc.3`. Both releases pin the relay protocol to [`94183d0`](https://github.com/KKUCODES/dshm-relay/commit/94183d08ccbb8752d14c819608d79fe3870a9a60). Use a relay build that includes that commit for large responses.
+
 ## Deploy the relay with Docker Compose
 
 **Self-hosting with HTTPS is recommended.** Node.js 24 + Fastify + PostgreSQL. Docker Compose includes the database, gateway, and Caddy; deployment is independent and does not require building the computer plugin.
 
-Prepare Docker Compose, a domain pointing to your server, and TCP ports 80/443. From the backend directory, run:
+Prepare Docker Compose, point a domain to the server, and allow TCP ports 80 and 443. For a new deployment, copy the configuration template from the repository root. When upgrading an existing deployment, keep its `.env`.
 
 ```sh
 cp .env.example .env
@@ -38,14 +40,18 @@ docker compose up -d --build --wait
 docker compose ps
 ```
 
-Check that `https://your-domain/health` returns `ok: true`. Enter the relay's root URL in the computer plugin, register the computer, and enable the connection. Claim a pairing link on your phone, then verify its fingerprint and approve it on the computer.
+Check `https://your-domain/health` for `ok: true` and `https://your-domain/v1/server-info` for the configured `registrationMode` and `remoteTransport: 2`.
+
+1. In the desktop plugin, enter the relay root URL (for example, `https://relay.example.com`), register the computer, and enable the connection.
+2. Generate a one-time pairing link. In Remote on the phone, scan the QR code or paste the complete link and tap **Continue pairing**. The link is valid for five minutes and can be claimed once.
+3. Compare the phone’s public-key fingerprint on both devices and approve it on the computer. Keep Remote open while it connects and loads your sessions. [Phone pairing guide](https://github.com/KKUCODES/deepseek-harness-mobile/blob/main/README.en.md#connect-to-deepseek-harness-on-your-computer)
 
 | Registration mode | First computer registration |
 | --- | --- |
 | `private` (default) | Requires an enrollment token. |
 | `open` | No enrollment token; phones still need pairing, approval, and authentication. |
 
-Restart the gateway after changing modes. Existing computer credentials remain valid. For local startup, updates, backups, and troubleshooting, see the [deployment guide (Chinese)](./docs/deployment.md).
+After editing the registration mode in `.env`, run `docker compose up -d --wait` to apply it. Previously registered computers keep their credentials. [Deployment guide (Chinese)](./docs/deployment.md)
 
 ### Use the public relay
 
@@ -68,7 +74,7 @@ Registration is open; phones still need pairing and approval. HTTP transport is 
 
 Linux Docker validation covered public-network HTTP transport, pairing, revocation, container restarts, and backup restoration in an isolated environment. **HTTPS and the complete public-network path with real DSH + Android still need validation.**
 
-The core local combination is official DSH `0.2.1-alpha.2` + plugin `0.1.80-latest.0` + the original matching Android app. Server address changes in `0.1.81-latest.0` were validated separately. The phone now has a public development preview, and plugin Actions provides `0.1.82-latest.0` builds; download availability does not replace the original combination's full compatibility evidence. See [plugin versions and downloads](https://github.com/KKUCODES/dshm-plugin/blob/main/README.en.md#current-status).
+The public relay was upgraded to `94183d0` in October 2026. Its recorded checks cover chunked responses, reconnects and older clients. For the scope of the current client tests, see the [desktop compatibility report (Chinese)](https://github.com/KKUCODES/dshm-plugin/blob/main/compatibility/latest-upstream/official-support.md) and [relay transport record (Chinese)](./docs/response-chunks.md).
 
 ## FAQ
 

@@ -20,11 +20,13 @@ flowchart LR
 
 普通聊天由手机直连 DeepSeek，不经过中转。后端无需模型 Key，也不执行任务或提供远程桌面。
 
+Remote 配套使用 [Android 客户端 `0.1.0-preview.22`](https://github.com/KKUCODES/deepseek-harness-mobile/releases/tag/v0.1.0-preview.22)、[电脑插件 `0.1.88-latest.0`](https://github.com/KKUCODES/dshm-plugin/releases/tag/v0.1.88-latest.0) 和官方 DSH `0.2.2-rc.3`。两端发行配置均固定到中转协议提交 [`94183d0`](https://github.com/KKUCODES/dshm-relay/commit/94183d08ccbb8752d14c819608d79fe3870a9a60)；自建网关需使用包含该提交的构建才能传输大响应。
+
 ## 使用 Docker Compose 部署中转服务
 
 **推荐自建 HTTPS。** Node.js 24 + Fastify + PostgreSQL；Docker Compose 包含数据库、网关与 Caddy，可独立部署，无需构建电脑插件。
 
-准备 Docker Compose、指向服务器的域名及 TCP 80/443。在后端目录执行：
+准备 Docker Compose、指向服务器的域名及 TCP 80/443。首次部署时，在后端仓库根目录复制配置模板。升级已有服务时沿用原来的 `.env`。
 
 ```sh
 cp .env.example .env
@@ -38,14 +40,18 @@ docker compose up -d --build --wait
 docker compose ps
 ```
 
-确认 `https://你的域名/health` 返回 `ok: true`。电脑插件填写根地址、注册并开启连接；手机领取配对链接，电脑核对指纹并批准。
+检查 `https://你的域名/health` 是否返回 `ok: true`，并确认 `https://你的域名/v1/server-info` 返回所选 `registrationMode` 和 `remoteTransport: 2`。
+
+1. 在电脑插件填写中转根地址（例如 `https://relay.example.com`），注册电脑并开启连接。
+2. 生成一次性配对链接，在手机「Remote」扫描二维码或粘贴完整链接，点击「继续配对」。链接五分钟内有效，只能领取一次。
+3. 对照两端显示的手机公钥指纹，一致后在电脑上批准。保持手机 Remote 打开，批准后会自动连接并读取会话。[手机配对指南](https://github.com/KKUCODES/deepseek-harness-mobile/blob/main/docs/usage.md#在手机配对)
 
 | 注册模式 | 首次注册电脑 |
 | --- | --- |
 | `private`（默认） | 需要注册密钥。 |
 | `open` | 免注册密钥，手机仍需配对、批准与鉴权。 |
 
-切换模式后重启网关，已有电脑凭据继续有效。本地启动、更新、备份与排障见[部署指南](./docs/deployment.md)。
+修改 `.env` 中的注册模式后，执行 `docker compose up -d --wait` 使配置生效。已注册电脑继续使用原凭据。[部署指南](./docs/deployment.md)
 
 ### 使用公共中转服务
 
@@ -68,7 +74,7 @@ http://118.31.20.47:18787
 
 Linux Docker 的 HTTP 公网通信、配对、撤销、容器重启和隔离备份恢复已验。**HTTPS 与真实 DSH + Android 的完整公网链路仍待验。**
 
-核心本地组合为官方 DSH `0.2.1-alpha.2`＋插件 `0.1.80-latest.0`＋原配套 Android；`0.1.81-latest.0` 的地址修改另验。手机已提供公开开发预览，插件 Actions 提供 `0.1.82-latest.0` 构建包；这些下载入口不代替原组合的完整兼容结论。[插件版本与下载](https://github.com/KKUCODES/dshm-plugin#当前状态)
+公共中转在 2026 年 10 月升级至 `94183d0`，当时验证了大响应分块、重连及旧端通信。当前客户端的验收范围见[桌面插件兼容清单](https://github.com/KKUCODES/dshm-plugin/blob/main/compatibility/latest-upstream/official-support.md)，中转传输的验收范围见[分块记录](./docs/response-chunks.md)。
 
 ## 常见问题
 

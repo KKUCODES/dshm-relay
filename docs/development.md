@@ -11,6 +11,8 @@ npm run build
 
 `build` 先编译 `@dsh-mobile/protocol`，再编译 `@dsh-mobile/gateway`。生产运行只使用本仓库中的两个包，不需要构建相邻插件。环境与启动方式见[部署指南](./deployment.md)。
 
+当前两端以同一协议提交构建：[手机 `0.1.0-preview.22` 的配置](https://github.com/KKUCODES/deepseek-harness-mobile/blob/v0.1.0-preview.22/ci/release.json)和[桌面插件 `0.1.88-latest.0` 的配置](https://github.com/KKUCODES/dshm-plugin/blob/v0.1.88-latest.0/ci/release.json)均固定 `backendCommit=94183d08ccbb8752d14c819608d79fe3870a9a60`，运行目标为官方 DSH `0.2.2-rc.3`。复核发行组合时按这两份配置准备环境，下面的旧版本专项保留各自的测试基线。
+
 ## 测试范围
 
 仅检查后端鉴权、配对与中继：

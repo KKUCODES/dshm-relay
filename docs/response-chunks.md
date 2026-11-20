@@ -1,6 +1,8 @@
 # Remote 大响应分块
 
-状态：2026-10-23 独立 `fix/remote-response-chunks` 分支实现与本地验收完成，协议提交 `94183d0` 已推送；App preview.7与插件0.1.87已公开发布，公共中转已升级并通过公网分块、重连及旧端兼容核验。只修改 DSHM 手机端、插件与中转，不修改 DSH。实现：[KKC-75](https://linear.app/kkcodes/issue/KKC-75)；发布与部署：[KKC-76](https://linear.app/kkcodes/issue/KKC-76)。
+当前 [Android `0.1.0-preview.22`](https://github.com/KKUCODES/deepseek-harness-mobile/blob/v0.1.0-preview.22/ci/release.json) 与[桌面插件 `0.1.88-latest.0`](https://github.com/KKUCODES/dshm-plugin/blob/v0.1.88-latest.0/ci/release.json) 的发行配置均固定中转协议 `94183d0`，桌面运行目标为官方 DSH `0.2.2-rc.3`。自建网关的版本核对见[部署指南](./deployment.md)。
+
+历史验收（2026-10-23）使用 App preview.7 和插件 0.1.87。该次公共中转升级通过公网分块、重连及旧端兼容检查。[实现任务](https://linear.app/kkcodes/issue/KKC-75) · [部署任务](https://linear.app/kkcodes/issue/KKC-76)
 
 ## 用户可见行为
 

@@ -6,7 +6,11 @@
 
 ## 当前配置
 
-2026-10-23 配套升级完成：运行通用分块协议提交 `94183d08ccbb8752d14c819608d79fe3870a9a60`，配套App preview.7与插件0.1.87已公开发布。新版镜像 `dshm-relay-gateway:chunks-94183d0` 已启动并通过公网分块、重连与旧端通信核验；仅重建网关，原数据库、设备授权、代理与其他项目容器保持。[升级任务](https://linear.app/kkcodes/issue/KKC-76)、[协议与回归边界](../docs/response-chunks.md)。
+当前配套客户端为 Android `0.1.0-preview.22` 和电脑插件 `0.1.88-latest.0`，桌面宿主为官方 DSH `0.2.2-rc.3`。两端沿用下列部署记录中的分块协议。[当前配对步骤](../docs/deployment.md#3-连接电脑与手机)
+
+2026-11-20 从公共根地址读取 `/health` 和 `/v1/server-info`，分别返回 `{"ok":true,"protocol":1}` 与 `{"registrationMode":"open","remoteTransport":2}`。镜像与容器参数的依据为下方 2026-10-23 部署记录。
+
+2026-10-23 的部署记录：当时上线通用分块协议提交 `94183d08ccbb8752d14c819608d79fe3870a9a60`，当次验收使用 App preview.7 与插件 0.1.87。新版镜像 `dshm-relay-gateway:chunks-94183d0` 已启动并通过公网分块、重连与旧端通信核验；仅重建网关，原数据库、设备授权、代理与其他项目容器保持。[升级任务](https://linear.app/kkcodes/issue/KKC-76)、[协议与回归边界](../docs/response-chunks.md)。
 
 - 当前入口：`http://118.31.20.47:18787`，电脑插件填写此根地址；新电脑注册后按原流程生成配对链接、在手机领取并在电脑批准。
 - 开放注册：不需要公共注册密钥，手机仍需一次性配对和电脑批准。

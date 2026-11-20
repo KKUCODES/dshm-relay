@@ -1,6 +1,8 @@
 # 部署与运行
 
-本指南适用于当前仓库中的网关。所有命令在后端仓库目录执行；部署服务不需要克隆或构建 DSHM 插件。
+本指南适用于独立部署的 DSHM 网关。部署命令在本仓库根目录执行。Remote 当前配套为 [DSHM Android `0.1.0-preview.22`](https://github.com/KKUCODES/deepseek-harness-mobile/releases/tag/v0.1.0-preview.22)、[桌面插件 `0.1.88-latest.0`](https://github.com/KKUCODES/dshm-plugin/releases/tag/v0.1.88-latest.0) 和官方 DSH **`0.2.2-rc.3`**。DSH 和插件装在用户电脑，服务器运行中转、数据库与反向代理。
+
+[手机发行配置](https://github.com/KKUCODES/deepseek-harness-mobile/blob/v0.1.0-preview.22/ci/release.json)和[插件发行配置](https://github.com/KKUCODES/dshm-plugin/blob/v0.1.88-latest.0/ci/release.json)的 `backendCommit` 都是 [`94183d0`](https://github.com/KKUCODES/dshm-relay/commit/94183d08ccbb8752d14c819608d79fe3870a9a60)。自建网关应使用包含该提交的源码构建，以支持长历史和大响应分块。已有网关可通过其部署记录核对源码提交。
 
 ## 选择运行方式
 
@@ -59,16 +61,16 @@ curl https://relay.example.com/health
 curl https://relay.example.com/v1/server-info
 ```
 
-将示例域名替换成自己的域名。健康接口应返回 `ok: true`；服务信息应显示所选 `registrationMode` 和 `remoteTransport: 2`。Windows PowerShell 可使用 `Invoke-RestMethod` 请求相同地址。
+将示例域名替换为自己的域名。`/health` 查询数据库，正常时返回 `{"ok":true,"protocol":1}`。`/v1/server-info` 返回配置的 `registrationMode` 和 `remoteTransport: 2`。这两个接口均不返回正在运行的源码提交。Windows PowerShell 可用 `Invoke-RestMethod` 检查。
 
 Caddy 自动办理 HTTPS 证书并代理 WebSocket。Compose 设置 `PUBLIC_ORIGIN=https://你的域名`，并只信任 Caddy 的一跳代理；不要额外公开网关或数据库端口。当前 HTTPS 配置已提供，但尚未完成实际 HTTPS 部署验收。
 
 ### 3. 连接电脑与手机
 
-1. 在电脑 DSHM 插件设置页填写服务根地址 `https://你的域名` 和电脑名称。
-2. 个人模式填写 `.env` 中的注册密钥，开放模式无需填写。注册成功后电脑使用自己的独立凭据。
-3. 开启远程连接，生成一次性链接，在手机 DSHM 的 Remote 领取。
-4. 回到电脑核对手机公钥指纹，批准设备。需要电脑管理能力时另行授予管理权限。
+1. 在官方 DSH `0.2.2-rc.3` 安装[桌面插件 `0.1.88-latest.0`](https://github.com/KKUCODES/dshm-plugin/releases/tag/v0.1.88-latest.0)，重启 DSH Web 加载插件。填入双方可达的中转根地址（如 `https://relay.example.com`）与电脑名称。地址须匹配 `PUBLIC_ORIGIN`，不要追加 `/health`、`/v1` 或 DSH 网页路径。
+2. 默认 `private` 模式使用 `ENROLLMENT_TOKEN` 注册电脑，`open` 模式免注册密钥。注册后电脑使用独立凭据。开启远程连接，点击「生成一次性配对链接」。
+3. 在手机 preview.22 打开「Remote」，扫描电脑显示的二维码，或粘贴完整链接。确认设备名称并点击「继续配对」。链接五分钟内有效，领取一次即失效。
+4. 对照两端显示的设备公钥指纹，在电脑插件中勾选「我已核对设备公钥指纹」并批准设备。保持手机 Remote 打开，它会自动连接并读取会话。电脑管理权限另行授予。[手机配对步骤](https://github.com/KKUCODES/deepseek-harness-mobile/blob/main/docs/usage.md#在手机配对)
 
 电脑和 DSH 需要保持运行。已有电脑更换地址或后端时，使用插件的“修改服务地址”；手机用新链接重新配对。同一后端换地址需保留数据库和身份，新后端不会自动继承旧授权，旧服务的设备授权也不会自动撤销。
 
@@ -134,7 +136,7 @@ node --env-file=.env.local packages/gateway/dist/main.js
 
 HTTP 和 HTTPS 都可连接，不需要旧版 `ALLOW_INSECURE_LOCALHOST` 开关。HTTP 会记录未加密提示，凭据和聊天内容可能被窃听或篡改；公网建议 HTTPS。手机批准和请求鉴权不能替代传输加密，中转也不提供端到端加密。
 
-切换注册模式需重启网关。已有电脑凭据不会因此失效；两种模式都保留注册限流、配对、批准和后续设备鉴权。非法模式或个人模式缺少有效密钥会拒绝启动。
+修改 `.env` 的注册模式后，Compose 部署执行 `docker compose up -d --wait`，让网关容器读取新环境。原生部署则用新环境重启网关进程。已有电脑凭据继续有效；两种模式均保留注册限流、手机配对与批准。非法模式或个人模式缺少有效密钥会拒绝启动。
 
 ## 更新、停止与备份
 
@@ -160,7 +162,7 @@ docker compose logs --tail 100 gateway caddy
 | `Invalid gateway environment` | 必填环境变量、数据库 URL 和端口；是否使用 `--env-file` 加载配置。 |
 | `Invalid registration configuration` | 模式是否为 `open/private`，个人模式密钥是否为 43 字符 base64url。 |
 | `Gateway startup failed` | PostgreSQL 可达性与权限、`PUBLIC_ORIGIN`、端口占用。 |
-| 插件检测失败或 `operation_failed` | 服务健康接口；升级插件后是否真正重启了 DSH 进程。刷新网页不加载新 Host 代码。 |
+| 插件检测失败或 `operation_failed` | 从客户端所在网络检查 `/health`、`/v1/server-info` 和插件填写的根地址。升级电脑插件后重启 DSH Web。 |
 | 请求鉴权或来源失败 | 手机与电脑使用的地址、`PUBLIC_ORIGIN`、反向代理和协议是否一致。 |
 | 手机无法访问 `127.0.0.1` | 手机的 localhost 是手机自己；改用双方可达的服务器地址。 |
 
